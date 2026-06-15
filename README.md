@@ -38,7 +38,7 @@ ShibeShip does **not** hold your Dogecoin. Funds for PIN-escrow orders sit in a 
 | Party | Holds | Received via |
 |-------|--------|----------------|
 | **Seller** | Encrypted private key | ShibeShip order email (save it safely) |
-| **Buyer** | 6-word PIN | Checkout / bid confirmation email (save it safely) |
+| **Buyer** | 6-part PIN (5 Doge words + 8-char security code last) | Checkout / bid confirmation email (save it safely) |
 
 Together, these two pieces unlock the wallet. ShibeShip never stores the decrypted private key and cannot spend the funds on its own.
 
@@ -110,16 +110,25 @@ Enter the **6-word PIN** from the buyer’s checkout or bid email:
 
 ### 4. Sweep
 
-If the PIN and key match, the tool shows the **decrypted private key** (WIF format).
+If the PIN and key match, the tool shows the **decrypted private key** (WIF format) and a **QR code** encoding that same key.
 
-**Sweep immediately:**
+**Move funds immediately** — use either option below:
+
+### Option A — Dogecoin Wallet (mobile)
 
 1. Install [Dogecoin Wallet](https://dogecoinwallet.org)
 2. Open **Settings → Sweep**
-3. Paste the private key (or scan from another device)
+3. **Scan the QR code** on screen or paste the private key
 4. Confirm sweep to **your own** Dogecoin address
 
-Alternatively, import the key into [Dogecoin Core](https://dogecoin.com/) and send the balance to your address.
+### Option B — Dogecoin Core (desktop)
+
+1. Install [Dogecoin Core](https://dogecoin.com/wallets/) on your computer
+2. Go to **File → Import Private Key**
+3. Paste the private key shown in the tool (or copy it from below the QR)
+4. **Send all DOGE** to a wallet you control as soon as the import completes
+
+Do not leave funds in the temporary order wallet.
 
 ---
 
@@ -146,8 +155,10 @@ Alternatively, import the key into [Dogecoin Core](https://dogecoin.com/) and se
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Offline PIN unlock tool (publish this + `img/` to GitHub or any static host) |
-| `img/shibeship.png` | ShibeShip logo used by the tool UI |
+| `index.html` | Offline PIN unlock tool (publish with `js/` and `img/`) |
+| `js/shibeship-pin.js` | Shared PIN parse/decrypt helpers (new + legacy PIN formats) |
+| `js/qr-code-styling.js` | Bundled QR library (works offline after page load) |
+| `img/shibeship.png` | ShibeShip logo used by the tool UI and QR center icon |
 | `README.md` | This documentation |
 
 ---
@@ -156,7 +167,7 @@ Alternatively, import the key into [Dogecoin Core](https://dogecoin.com/) and se
 
 You can publish this folder as its own repository or GitHub Pages site:
 
-1. Upload `index.html`, `img/shibeship.png`, and this `README.md`
+1. Upload `index.html`, `js/shibeship-pin.js`, `js/qr-code-styling.js`, `img/shibeship.png`, and this `README.md`
 2. Enable **GitHub Pages** (Settings → Pages → deploy from `main` branch, root or `/docs`)
 3. Your tool will be available at `https://<username>.github.io/<repo>/` (or the path where `index.html` lives)
 

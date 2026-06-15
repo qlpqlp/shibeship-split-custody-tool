@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="ShibeShip offline escrow unlock — decrypt order wallets with encrypted key + 6-word PIN. Runs in your browser only.">
+  <meta name="description" content="ShibeShip offline escrow unlock — decrypt order wallets with encrypted key + PIN (5 Doge words + security code). Runs in your browser only.">
   <meta name="theme-color" content="#f9fafb">
   <title>ShibeShip — Offline PIN Unlock</title>
   <link rel="icon" href="img/shibeship.png">
@@ -361,8 +361,69 @@
       line-height: 1.55;
     }
     .sweep-list a { color: var(--blue); font-weight: 700; }
+    .sweep-options {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    @media (min-width: 420px) {
+      .sweep-options { grid-template-columns: 1fr 1fr; }
+    }
+    .sweep-option {
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--bg-subtle);
+    }
+    .sweep-option h4 {
+      margin: 0 0 10px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .sweep-option--mobile { border-left: 4px solid var(--gold); }
+    .sweep-option--core { border-left: 4px solid var(--blue); }
+    .sweep-option .sweep-list {
+      margin: 0;
+      font-size: 0.82rem;
+    }
     .copy-row { margin-top: 12px; }
     .copy-row .btn { width: 100%; flex: none; }
+    .key-qr-wrap {
+      text-align: center;
+      margin: 16px 0 4px;
+      padding: 16px 12px;
+      border-radius: 14px;
+      border: 1px dashed var(--line);
+      background: #fff;
+    }
+    .key-qr-wrap__label {
+      margin: 0 0 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .key-qr-wrap__canvas {
+      display: inline-block;
+      max-width: 220px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .key-qr-wrap__hint {
+      margin: 10px 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .key-qr-wrap__actions {
+      margin-top: 10px;
+    }
+    .key-qr-wrap__actions .btn {
+      width: auto;
+      flex: none;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+    }
     footer {
       text-align: center;
       margin-top: 24px;
@@ -406,7 +467,7 @@
       </div>
       <div class="stepper__item" data-step-nav="2">
         <div class="stepper__dot">3</div>
-        <span class="stepper__label">6-word PIN</span>
+        <span class="stepper__label">PIN</span>
       </div>
       <div class="stepper__item" data-step-nav="3">
         <div class="stepper__dot">4</div>
@@ -426,7 +487,7 @@
             </div>
             <div class="mini-card mini-card--buyer">
               <strong>Buyer has</strong>
-              <span>6-word PIN from checkout email</span>
+              <span>PIN from checkout email — 5 Doge words + 8-char security code (last)</span>
             </div>
           </div>
           <p class="hint">This tool uses the same encryption as ShibeShip. Paste both values on the next steps — no account or internet API required after the page loads.</p>
@@ -443,15 +504,15 @@
         </section>
 
         <section class="step" data-step="2">
-          <h2>Enter 6-word PIN</h2>
-          <p class="lead">From the buyer’s checkout email — same order as when they paid.</p>
+          <h2>Enter PIN</h2>
+          <p class="lead">From the buyer’s checkout email — 5 Doge words plus the 8-character security code as the <strong>last</strong> part.</p>
           <div class="field">
-            <label for="pin">6-word PIN</label>
-            <input type="text" id="pin" placeholder="69 MOON DOGE HAPPY PAW KEYS" autocomplete="off" spellcheck="false">
+            <label for="pin">PIN (5 words + code)</label>
+            <input type="text" id="pin" placeholder="69 MOON DOGE HAPPY PAW K7X2M9Q1" autocomplete="off" spellcheck="false">
             <div class="pin-meter" id="pinMeter" aria-hidden="true">
               <span></span><span></span><span></span><span></span><span></span><span></span>
             </div>
-            <p class="hint" id="pinHint">0 of 6 words</p>
+            <p class="hint" id="pinHint">0 of 6 parts</p>
           </div>
           <div id="unlockError" class="result-box is-error" role="alert">
             <h3>Could not unlock</h3>
@@ -464,17 +525,39 @@
           <p class="lead">Sweep all DOGE to a wallet you control right away.</p>
           <div id="unlockSuccess" class="result-box is-visible">
             <h3>Private key</h3>
+            <div class="key-qr-wrap" id="keyQrWrap" hidden>
+              <p class="key-qr-wrap__label">Scan with Dogecoin Wallet → Settings → Sweep</p>
+              <div id="keyQrCanvas" class="key-qr-wrap__canvas" role="img" aria-label="Private key QR code"></div>
+              <p class="key-qr-wrap__hint">QR encodes your decrypted WIF private key. Scan on another device or save the image. When opened from a local file, the QR has no center logo (browser security).</p>
+              <div class="key-qr-wrap__actions">
+                <button type="button" class="btn btn--ghost" id="downloadQrBtn">Download QR image</button>
+              </div>
+            </div>
             <code id="plainKey" class="key-block"></code>
             <div class="copy-row">
               <button type="button" class="btn btn--gold" id="copyBtn">Copy private key</button>
             </div>
           </div>
-          <ol class="sweep-list">
-            <li>Install <a href="https://dogecoinwallet.org" target="_blank" rel="noopener">Dogecoin Wallet</a></li>
-            <li>Open <strong>Settings → Sweep</strong></li>
-            <li>Paste the key or scan from another device</li>
-            <li>Confirm sweep to your own address</li>
-          </ol>
+          <div class="sweep-options">
+            <div class="sweep-option sweep-option--mobile">
+              <h4>Mobile — Dogecoin Wallet</h4>
+              <ol class="sweep-list">
+                <li>Install <a href="https://dogecoinwallet.org" target="_blank" rel="noopener">Dogecoin Wallet</a></li>
+                <li>Open <strong>Settings → Sweep</strong></li>
+                <li>Scan the QR or paste the private key</li>
+                <li>Confirm sweep to your own address</li>
+              </ol>
+            </div>
+            <div class="sweep-option sweep-option--core">
+              <h4>Desktop — Dogecoin Core</h4>
+              <ol class="sweep-list">
+                <li>Install <a href="https://dogecoin.com/wallets/" target="_blank" rel="noopener">Dogecoin Core</a></li>
+                <li>Go to <strong>File → Import Private Key</strong></li>
+                <li>Paste the private key shown above</li>
+                <li>Send all DOGE to a wallet you control once the import completes</li>
+              </ol>
+            </div>
+          </div>
         </section>
       </div>
 
@@ -487,18 +570,23 @@
     <footer>Do Only Good Everyday — ShibeShip escrow recovery</footer>
   </div>
 
+  <script src="js/shibeship-pin.js"></script>
+  <script src="js/qr-code-styling.js"></script>
   <script>
 (function () {
-  const DOGEEMONIC = ["69","420","DOGECOIN","DOGE","MOON","HAPPY","COMMUNITY","KIND","KINDNESS","SMILE","PEOPLE","CURRENCY","SO","PAW","DOGELEY","HELP","POSITIVE","TRUE","GIVE","GIVEN","SHARE","LOVE","HUG","KISS","DEV","DESCENTRALIZE","SELF","CUSTODY","WALLET","KEYS","88","13","2013","NINTONDO","BILLY","JACKSON"];
   const WIF_RE = /^[5KL6Q9][1-9A-HJ-NP-Za-km-z]{50,52}$/;
   const TOTAL_STEPS = 4;
   let currentStep = 0;
+  let keyQrInstance = null;
 
   const encKeyEl = document.getElementById('encKey');
   const pinEl = document.getElementById('pin');
   const pinMeter = document.getElementById('pinMeter');
   const pinHint = document.getElementById('pinHint');
   const plainKeyEl = document.getElementById('plainKey');
+  const keyQrWrap = document.getElementById('keyQrWrap');
+  const keyQrCanvas = document.getElementById('keyQrCanvas');
+  const downloadQrBtn = document.getElementById('downloadQrBtn');
   const unlockError = document.getElementById('unlockError');
   const btnBack = document.getElementById('btnBack');
   const btnNext = document.getElementById('btnNext');
@@ -506,43 +594,96 @@
   const navItems = document.querySelectorAll('[data-step-nav]');
   const steps = document.querySelectorAll('[data-step]');
 
-  function normalizePin(pin) {
-    return String(pin).trim().replace(/\s+/g, ' ');
-  }
-
-  function countPinWords(pin) {
-    const n = normalizePin(pin);
-    if (!n) return 0;
-    return n.split(' ').filter(Boolean).length;
-  }
-
-  function parsePinWords(pin) {
-    const words = DOGEEMONIC.slice().sort((a, b) => b.length - a.length);
-    let rest = String(pin).toUpperCase().replace(/\s+/g, '');
-    if (!rest) return null;
-    const found = [];
-    while (rest.length) {
-      let matched = false;
-      for (const word of words) {
-        if (rest.indexOf(word) === 0) {
-          found.push(word);
-          rest = rest.slice(word.length);
-          matched = true;
-          break;
+  function buildKeyQrConfig(privateKey, logoDataUrl) {
+    var cfg = {
+      width: 220,
+      height: 220,
+      type: 'canvas',
+      data: privateKey,
+      backgroundOptions: { color: '#ffffff' },
+      dotsOptions: {
+        gradient: {
+          type: 'linear',
+          colorStops: [
+            { offset: 0, color: '#333333' },
+            { offset: 1, color: '#000000' }
+          ]
         }
       }
-      if (!matched) return null;
+    };
+    if (logoDataUrl) {
+      cfg.image = logoDataUrl;
+      cfg.imageOptions = {
+        hideBackgroundDots: false,
+        imageSize: 0.45,
+        margin: 0
+      };
     }
-    return found.length === 6 ? found.join(' ') : null;
+    return cfg;
+  }
+
+  function loadQrLogoDataUrl() {
+    return new Promise(function (resolve) {
+      if (location.protocol === 'file:') {
+        resolve(null);
+        return;
+      }
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || 72;
+          canvas.height = img.naturalHeight || 72;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      img.onerror = function () { resolve(null); };
+      img.src = 'img/shibeship.png';
+    });
+  }
+
+  async function renderKeyQr(privateKey) {
+    keyQrInstance = null;
+    keyQrCanvas.innerHTML = '';
+    if (!privateKey || !window.QRCodeStyling) {
+      keyQrWrap.hidden = true;
+      return;
+    }
+    try {
+      var logoDataUrl = await loadQrLogoDataUrl();
+      keyQrInstance = new QRCodeStyling(buildKeyQrConfig(privateKey, logoDataUrl));
+      keyQrInstance.append(keyQrCanvas);
+      keyQrWrap.hidden = false;
+    } catch (e) {
+      try {
+        keyQrInstance = new QRCodeStyling(buildKeyQrConfig(privateKey, null));
+        keyQrInstance.append(keyQrCanvas);
+        keyQrWrap.hidden = false;
+      } catch (e2) {
+        keyQrWrap.hidden = true;
+      }
+    }
+  }
+
+  function clearKeyQr() {
+    keyQrInstance = null;
+    keyQrCanvas.innerHTML = '';
+    keyQrWrap.hidden = true;
   }
 
   function pinCandidates(pin) {
-    const out = [];
-    const n = normalizePin(pin);
-    if (n) out.push(n);
-    const p = parsePinWords(pin);
-    if (p && out.indexOf(p) === -1) out.push(p);
-    return out;
+    return ShibeShipPin.pinCandidates(pin);
+  }
+
+  function countPinWords(pin) {
+    return ShibeShipPin.countPinParts(pin);
+  }
+
+  function isPinReady(pin) {
+    return ShibeShipPin.isPinComplete(pin);
   }
 
   function isValidWif(key) {
@@ -599,7 +740,7 @@
     pinMeter.querySelectorAll('span').forEach(function (el, i) {
       el.classList.toggle('is-on', i < count);
     });
-    pinHint.textContent = count + ' of 6 words';
+    pinHint.textContent = count + ' of 6 parts';
   }
 
   function setStep(step) {
@@ -624,7 +765,7 @@
     } else if (currentStep === 2) {
       btnNext.textContent = 'Unlock wallet';
       btnNext.className = 'btn btn--gold';
-      btnNext.disabled = countPinWords(pinEl.value) < 6;
+      btnNext.disabled = !isPinReady(pinEl.value);
       unlockError.classList.remove('is-visible');
     } else {
       btnNext.textContent = 'Start over';
@@ -644,13 +785,14 @@
         return false;
       }
       plainKeyEl.textContent = key;
+      await renderKeyQr(key);
       return true;
     } catch (e) {
       unlockError.classList.add('is-visible');
       return false;
     } finally {
       btnNext.innerHTML = 'Unlock wallet';
-      btnNext.disabled = countPinWords(pinEl.value) < 6;
+      btnNext.disabled = !isPinReady(pinEl.value);
     }
   }
 
@@ -666,6 +808,7 @@
       encKeyEl.value = '';
       pinEl.value = '';
       plainKeyEl.textContent = '';
+      clearKeyQr();
       updatePinMeter();
       setStep(0);
       return;
@@ -682,7 +825,7 @@
   pinEl.addEventListener('input', function () {
     updatePinMeter();
     if (currentStep === 2) {
-      btnNext.disabled = countPinWords(pinEl.value) < 6;
+      btnNext.disabled = !isPinReady(pinEl.value);
     }
   });
 
@@ -691,6 +834,13 @@
       copyBtn.textContent = 'Copied!';
       setTimeout(function () { copyBtn.textContent = 'Copy private key'; }, 2000);
     });
+  });
+
+  downloadQrBtn.addEventListener('click', function () {
+    if (!keyQrInstance) {
+      return;
+    }
+    keyQrInstance.download({ name: 'shibeship-sweep-key', extension: 'png' });
   });
 
   const params = new URLSearchParams(window.location.search);
