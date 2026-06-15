@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="ShibeShip offline escrow unlock — decrypt order wallets with encrypted key + 6-word PIN. Runs in your browser only.">
+  <meta name="theme-color" content="#f9fafb">
+  <title>ShibeShip — Offline PIN Unlock</title>
+  <link rel="icon" href="img/shibeship.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f9fafb;
+      --bg-subtle: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --text-secondary: #334155;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --gold: #c99200;
+      --gold-soft: #fef9c3;
+      --gold-text: #92400e;
+      --blue: #2563eb;
+      --blue-dark: #1e40af;
+      --ok: #166534;
+      --ok-bg: #ecfdf5;
+      --ok-border: #bbf7d0;
+      --err: #b91c1c;
+      --err-bg: #fef2f2;
+      --err-border: #fecaca;
+      --err-text: #7f1d1d;
+      --shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+      --radius: 20px;
+      --step-size: 2.25rem;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: "Comic Neue", "Comic Sans MS", system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .app {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: max(20px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
+    }
+    .top {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      margin-bottom: 12px;
+    }
+    .top h1 {
+      margin: 0 0 6px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .top p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--ok-bg);
+      border: 1px solid var(--ok-border);
+      color: var(--ok);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: none;
+    }
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin: 24px 0 20px;
+      padding: 0 8px;
+    }
+    .stepper__item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      max-width: 88px;
+      position: relative;
+    }
+    .stepper__item:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: calc(var(--step-size) / 2);
+      left: calc(50% + var(--step-size) / 2 + 4px);
+      right: calc(-50% + var(--step-size) / 2 + 4px);
+      height: 2px;
+      background: var(--line);
+      z-index: 0;
+    }
+    .stepper__item.is-done:not(:last-child)::after {
+      background: linear-gradient(90deg, #22c55e, var(--line));
+    }
+    .stepper__dot {
+      width: var(--step-size);
+      height: var(--step-size);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: #fff;
+      border: 2px solid var(--line);
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+      transition: background 0.25s, border-color 0.25s, color 0.25s, transform 0.25s;
+    }
+    .stepper__item.is-active .stepper__dot {
+      background: var(--gold-soft);
+      border-color: var(--gold);
+      color: var(--gold-text);
+      transform: scale(1.08);
+      box-shadow: 0 0 0 4px rgba(201, 146, 0, 0.18);
+    }
+    .stepper__item.is-done .stepper__dot {
+      background: #22c55e;
+      border-color: #86efac;
+      color: #fff;
+    }
+    .stepper__label {
+      margin-top: 8px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.2;
+    }
+    .stepper__item.is-active .stepper__label { color: var(--gold-text); }
+    .stepper__item.is-done .stepper__label { color: var(--text-secondary); }
+    .panel {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .panel__body {
+      padding: 24px 20px;
+    }
+    .step {
+      display: none;
+      animation: fadeIn 0.35s ease;
+    }
+    .step.is-active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .step h2 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .step > p.lead {
+      margin: 0 0 20px;
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .split-cards {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    @media (min-width: 420px) {
+      .split-cards { grid-template-columns: 1fr 1fr; }
+    }
+    .mini-card {
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--bg-subtle);
+    }
+    .mini-card strong {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+    .mini-card span {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .mini-card--seller { border-left: 4px solid var(--blue); }
+    .mini-card--buyer { border-left: 4px solid var(--gold); }
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: inherit;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: ui-monospace, Consolas, Monaco, monospace;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      word-break: break-all;
+    }
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+    .hint code,
+    .step code {
+      font-family: ui-monospace, Consolas, Monaco, monospace;
+      font-size: 0.85em;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+      border: 1px solid var(--line);
+    }
+    .pin-meter {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .pin-meter span {
+      flex: 1;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--line);
+      transition: background 0.2s;
+    }
+    .pin-meter span.is-on { background: var(--gold); }
+    .panel__foot {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px;
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--line);
+    }
+    .btn {
+      flex: 1;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn--ghost {
+      background: #fff;
+      color: var(--text-secondary);
+      border: 1.5px solid var(--line);
+    }
+    .btn--primary {
+      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+    }
+    .btn--gold {
+      background: linear-gradient(135deg, #d4a017, var(--gold));
+      color: #422006;
+      box-shadow: 0 8px 20px rgba(201, 146, 0, 0.35);
+    }
+    .btn--ghost[hidden] { display: none; }
+    .result-box {
+      display: none;
+      margin-top: 4px;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid var(--ok-border);
+      background: var(--ok-bg);
+    }
+    .result-box.is-error {
+      border-color: var(--err-border);
+      background: var(--err-bg);
+    }
+    .result-box.is-visible { display: block; }
+    .result-box h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      color: var(--ok);
+    }
+    .result-box.is-error h3 { color: var(--err); }
+    .result-box .hint {
+      color: var(--err-text);
+    }
+    .key-block {
+      display: block;
+      word-break: break-all;
+      font-family: ui-monospace, Consolas, Monaco, monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      margin: 12px 0;
+    }
+    .sweep-list {
+      margin: 16px 0 0;
+      padding-left: 1.15rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .sweep-list a { color: var(--blue); font-weight: 700; }
+    .copy-row { margin-top: 12px; }
+    .copy-row .btn { width: 100%; flex: none; }
+    footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .spinner {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      border: 2px solid rgba(66, 32, 6, 0.25);
+      border-top-color: #422006;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: -0.15em;
+      margin-right: 6px;
+    }
+    .btn--primary .spinner {
+      border-color: rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <img class="logo" src="img/shibeship.png" width="72" height="72" alt="ShibeShip">
+      <h1>ShibeShip Offline PIN Unlock</h1>
+      <p>Recover escrow funds when ShibeShip is down - seller key + buyer PIN, decrypted locally.</p>
+    </header>
+
+    <nav class="stepper" aria-label="Progress">
+      <div class="stepper__item is-active" data-step-nav="0">
+        <div class="stepper__dot">1</div>
+        <span class="stepper__label">How it works</span>
+      </div>
+      <div class="stepper__item" data-step-nav="1">
+        <div class="stepper__dot">2</div>
+        <span class="stepper__label">Encrypted key</span>
+      </div>
+      <div class="stepper__item" data-step-nav="2">
+        <div class="stepper__dot">3</div>
+        <span class="stepper__label">6-word PIN</span>
+      </div>
+      <div class="stepper__item" data-step-nav="3">
+        <div class="stepper__dot">4</div>
+        <span class="stepper__label">Sweep</span>
+      </div>
+    </nav>
+
+    <div class="panel">
+      <div class="panel__body">
+        <section class="step is-active" data-step="0">
+          <h2>Split custody</h2>
+          <p class="lead">Neither party can move DOGE alone. After delivery, buyer and seller combine their pieces.</p>
+          <div class="split-cards">
+            <div class="mini-card mini-card--seller">
+              <strong>Seller has</strong>
+              <span>Encrypted private key from the sale email</span>
+            </div>
+            <div class="mini-card mini-card--buyer">
+              <strong>Buyer has</strong>
+              <span>6-word PIN from checkout email</span>
+            </div>
+          </div>
+          <p class="hint">This tool uses the same encryption as ShibeShip. Paste both values on the next steps — no account or internet API required after the page loads.</p>
+        </section>
+
+        <section class="step" data-step="1">
+          <h2>Paste encrypted key</h2>
+          <p class="lead">From the seller’s ShibeShip email — the long string starting with <code>v2:</code>.</p>
+          <div class="field">
+            <label for="encKey">Encrypted private key</label>
+            <textarea id="encKey" placeholder="v2:a1b2c3d4...:base64ciphertext..." spellcheck="false" autocomplete="off"></textarea>
+            <p class="hint">Legacy orders without <code>v2:</code> are also supported.</p>
+          </div>
+        </section>
+
+        <section class="step" data-step="2">
+          <h2>Enter 6-word PIN</h2>
+          <p class="lead">From the buyer’s checkout email — same order as when they paid.</p>
+          <div class="field">
+            <label for="pin">6-word PIN</label>
+            <input type="text" id="pin" placeholder="69 MOON DOGE HAPPY PAW KEYS" autocomplete="off" spellcheck="false">
+            <div class="pin-meter" id="pinMeter" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <p class="hint" id="pinHint">0 of 6 words</p>
+          </div>
+          <div id="unlockError" class="result-box is-error" role="alert">
+            <h3>Could not unlock</h3>
+            <p class="hint">Wrong PIN or invalid encrypted key. Double-check both emails and try again.</p>
+          </div>
+        </section>
+
+        <section class="step" data-step="3">
+          <h2>Wallet unlocked</h2>
+          <p class="lead">Sweep all DOGE to a wallet you control right away.</p>
+          <div id="unlockSuccess" class="result-box is-visible">
+            <h3>Private key</h3>
+            <code id="plainKey" class="key-block"></code>
+            <div class="copy-row">
+              <button type="button" class="btn btn--gold" id="copyBtn">Copy private key</button>
+            </div>
+          </div>
+          <ol class="sweep-list">
+            <li>Install <a href="https://dogecoinwallet.org" target="_blank" rel="noopener">Dogecoin Wallet</a></li>
+            <li>Open <strong>Settings → Sweep</strong></li>
+            <li>Paste the key or scan from another device</li>
+            <li>Confirm sweep to your own address</li>
+          </ol>
+        </section>
+      </div>
+
+      <div class="panel__foot">
+        <button type="button" class="btn btn--ghost" id="btnBack" hidden>Back</button>
+        <button type="button" class="btn btn--primary" id="btnNext">Continue</button>
+      </div>
+    </div>
+
+    <footer>Do Only Good Everyday — ShibeShip escrow recovery</footer>
+  </div>
+
+  <script>
+(function () {
+  const DOGEEMONIC = ["69","420","DOGECOIN","DOGE","MOON","HAPPY","COMMUNITY","KIND","KINDNESS","SMILE","PEOPLE","CURRENCY","SO","PAW","DOGELEY","HELP","POSITIVE","TRUE","GIVE","GIVEN","SHARE","LOVE","HUG","KISS","DEV","DESCENTRALIZE","SELF","CUSTODY","WALLET","KEYS","88","13","2013","NINTONDO","BILLY","JACKSON"];
+  const WIF_RE = /^[5KL6Q9][1-9A-HJ-NP-Za-km-z]{50,52}$/;
+  const TOTAL_STEPS = 4;
+  let currentStep = 0;
+
+  const encKeyEl = document.getElementById('encKey');
+  const pinEl = document.getElementById('pin');
+  const pinMeter = document.getElementById('pinMeter');
+  const pinHint = document.getElementById('pinHint');
+  const plainKeyEl = document.getElementById('plainKey');
+  const unlockError = document.getElementById('unlockError');
+  const btnBack = document.getElementById('btnBack');
+  const btnNext = document.getElementById('btnNext');
+  const copyBtn = document.getElementById('copyBtn');
+  const navItems = document.querySelectorAll('[data-step-nav]');
+  const steps = document.querySelectorAll('[data-step]');
+
+  function normalizePin(pin) {
+    return String(pin).trim().replace(/\s+/g, ' ');
+  }
+
+  function countPinWords(pin) {
+    const n = normalizePin(pin);
+    if (!n) return 0;
+    return n.split(' ').filter(Boolean).length;
+  }
+
+  function parsePinWords(pin) {
+    const words = DOGEEMONIC.slice().sort((a, b) => b.length - a.length);
+    let rest = String(pin).toUpperCase().replace(/\s+/g, '');
+    if (!rest) return null;
+    const found = [];
+    while (rest.length) {
+      let matched = false;
+      for (const word of words) {
+        if (rest.indexOf(word) === 0) {
+          found.push(word);
+          rest = rest.slice(word.length);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) return null;
+    }
+    return found.length === 6 ? found.join(' ') : null;
+  }
+
+  function pinCandidates(pin) {
+    const out = [];
+    const n = normalizePin(pin);
+    if (n) out.push(n);
+    const p = parsePinWords(pin);
+    if (p && out.indexOf(p) === -1) out.push(p);
+    return out;
+  }
+
+  function isValidWif(key) {
+    return typeof key === 'string' && WIF_RE.test(key.trim());
+  }
+
+  async function sha256(bytes) {
+    const buf = bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
+    return new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+  }
+
+  async function decryptV2(pin, blob) {
+    const parts = blob.split(':');
+    if (parts.length < 3 || parts[0] !== 'v2') return null;
+    const salt = parts[1];
+    const b64 = parts.slice(2).join(':');
+    const cipherBytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const pinSalt = new TextEncoder().encode(pin + salt);
+    const keyBytes = (await sha256(pinSalt)).slice(0, 16);
+    const iv = (await sha256(new TextEncoder().encode(salt + 'iv'))).slice(0, 16);
+    const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CTR', length: 128 }, false, ['decrypt']);
+    const plainBuf = await crypto.subtle.decrypt({ name: 'AES-CTR', counter: iv, length: 128 }, cryptoKey, cipherBytes);
+    return new TextDecoder().decode(plainBuf);
+  }
+
+  async function decryptLegacy(pin, b64) {
+    const cipherBytes = Uint8Array.from(atob(b64.trim()), c => c.charCodeAt(0));
+    const pinBytes = new TextEncoder().encode(pin);
+    const keyBytes = new Uint8Array(16);
+    keyBytes.set(pinBytes.slice(0, 16));
+    const iv = new TextEncoder().encode('1234567891011121');
+    const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CTR', length: 128 }, false, ['decrypt']);
+    const plainBuf = await crypto.subtle.decrypt({ name: 'AES-CTR', counter: iv, length: 128 }, cryptoKey, cipherBytes);
+    return new TextDecoder().decode(plainBuf);
+  }
+
+  async function tryDecrypt(pin, encKey) {
+    encKey = encKey.trim();
+    if (!encKey) return null;
+    for (const candidate of pinCandidates(pin)) {
+      let plain = null;
+      if (encKey.indexOf('v2:') === 0) {
+        plain = await decryptV2(candidate, encKey);
+      } else {
+        plain = await decryptLegacy(candidate, encKey);
+      }
+      if (isValidWif(plain)) return plain.trim();
+    }
+    return null;
+  }
+
+  function updatePinMeter() {
+    const count = Math.min(6, countPinWords(pinEl.value));
+    pinMeter.querySelectorAll('span').forEach(function (el, i) {
+      el.classList.toggle('is-on', i < count);
+    });
+    pinHint.textContent = count + ' of 6 words';
+  }
+
+  function setStep(step) {
+    currentStep = Math.max(0, Math.min(TOTAL_STEPS - 1, step));
+    steps.forEach(function (el) {
+      el.classList.toggle('is-active', parseInt(el.getAttribute('data-step'), 10) === currentStep);
+    });
+    navItems.forEach(function (el) {
+      const n = parseInt(el.getAttribute('data-step-nav'), 10);
+      el.classList.toggle('is-active', n === currentStep);
+      el.classList.toggle('is-done', n < currentStep);
+    });
+    btnBack.hidden = currentStep === 0;
+    if (currentStep === 0) {
+      btnNext.textContent = 'Continue';
+      btnNext.className = 'btn btn--primary';
+      btnNext.disabled = false;
+    } else if (currentStep === 1) {
+      btnNext.textContent = 'Continue';
+      btnNext.className = 'btn btn--primary';
+      btnNext.disabled = encKeyEl.value.trim().length < 8;
+    } else if (currentStep === 2) {
+      btnNext.textContent = 'Unlock wallet';
+      btnNext.className = 'btn btn--gold';
+      btnNext.disabled = countPinWords(pinEl.value) < 6;
+      unlockError.classList.remove('is-visible');
+    } else {
+      btnNext.textContent = 'Start over';
+      btnNext.className = 'btn btn--ghost';
+      btnNext.disabled = false;
+    }
+  }
+
+  async function runUnlock() {
+    btnNext.disabled = true;
+    btnNext.innerHTML = '<span class="spinner"></span>Unlocking…';
+    unlockError.classList.remove('is-visible');
+    try {
+      const key = await tryDecrypt(pinEl.value, encKeyEl.value);
+      if (!key) {
+        unlockError.classList.add('is-visible');
+        return false;
+      }
+      plainKeyEl.textContent = key;
+      return true;
+    } catch (e) {
+      unlockError.classList.add('is-visible');
+      return false;
+    } finally {
+      btnNext.innerHTML = 'Unlock wallet';
+      btnNext.disabled = countPinWords(pinEl.value) < 6;
+    }
+  }
+
+  btnBack.addEventListener('click', function () { setStep(currentStep - 1); });
+
+  btnNext.addEventListener('click', async function () {
+    if (currentStep === 2) {
+      const ok = await runUnlock();
+      if (ok) setStep(3);
+      return;
+    }
+    if (currentStep === 3) {
+      encKeyEl.value = '';
+      pinEl.value = '';
+      plainKeyEl.textContent = '';
+      updatePinMeter();
+      setStep(0);
+      return;
+    }
+    setStep(currentStep + 1);
+  });
+
+  encKeyEl.addEventListener('input', function () {
+    if (currentStep === 1) {
+      btnNext.disabled = encKeyEl.value.trim().length < 8;
+    }
+  });
+
+  pinEl.addEventListener('input', function () {
+    updatePinMeter();
+    if (currentStep === 2) {
+      btnNext.disabled = countPinWords(pinEl.value) < 6;
+    }
+  });
+
+  copyBtn.addEventListener('click', function () {
+    navigator.clipboard.writeText(plainKeyEl.textContent).then(function () {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function () { copyBtn.textContent = 'Copy private key'; }, 2000);
+    });
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('key')) encKeyEl.value = params.get('key');
+
+  updatePinMeter();
+  setStep(0);
+})();
+  </script>
+</body>
+</html>
